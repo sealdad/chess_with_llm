@@ -23,9 +23,10 @@
 ---
 
 ## Battle Mode — LLM-Driven × Physical Arm
-
-<!-- SCREEN GIF: Battle mode UI (pick character → 3 moves → AI trash-talk subtitles, 6–10s, 720px) -->
-
+                                        
+<p align="center">                                                                                                                
+    <img src="docs/media/battle_mode.gif" alt="RX-200 arm picking up a chess piece" width="720">                                     
+  </p>             
 ***How the AI decides what to play***
 
 The Battle mode `think` node supports two move-decision modes:
