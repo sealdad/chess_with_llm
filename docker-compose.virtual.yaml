@@ -1,0 +1,40 @@
+# Chess with LLM — virtual mode (agent only, no hardware)
+#
+# Same as the default docker-compose.yaml. Use either:
+#   docker-compose up
+#   docker-compose -f docker-compose.virtual.yaml up
+#
+# All chess play happens in simulation mode in the browser. No camera,
+# no robot, no AprilTag calibration required.
+
+version: "3"
+
+services:
+  agent:
+    image: sealdad-agent:latest
+    build:
+      context: .
+      dockerfile: services/agent/Dockerfile
+    container_name: chess-agent
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/agent/main.py:/app/main.py:ro
+      - ./services/agent/voice_events.py:/app/voice_events.py:ro
+      - ./services/agent/voice_processor.py:/app/voice_processor.py:ro
+      - ./services/agent/lessons.py:/app/lessons.py:ro
+      - ./services/agent/board_setup.py:/app/board_setup.py:ro
+      - ./services/agent/audio:/app/audio:ro
+      - ./services/agent/websocket:/app/websocket:ro
+      - ./services/agent/conversation:/app/conversation:ro
+      - ./services/agent/static:/app/static:ro
+      - ./rx200_agent:/app/rx200_agent:ro
+      - ./lessons:/app/lessons:rw
+      - ./characters.yaml:/app/characters.yaml:rw
+      - ./agent_settings.yaml:/app/agent_settings.yaml:rw
+    environment:
+      VISION_SERVICE_URL: http://localhost:8001
+      ROBOT_SERVICE_URL: http://localhost:8002
+      STOCKFISH_PATH: /usr/games/stockfish
+      TTS_SERVICE_URL: ${TTS_SERVICE_URL:-}

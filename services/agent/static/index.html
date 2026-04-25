@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess with LLM</title>
+    <link rel="stylesheet" href="/static/styles.css?v=23">
+</head>
+<body>
+    <div class="container">
+        <!-- Header with Tab Navigation -->
+        <header>
+            <h1>Chess with LLM</h1>
+            <div class="tab-nav" id="top-tab-nav">
+                <button class="tab-btn active" data-tab="main">Game</button>
+                <button class="tab-btn" data-tab="agent">Agent</button>
+                <button class="tab-btn" data-tab="vision">Vision</button>
+                <button class="tab-btn" data-tab="robot">Robot</button>
+            </div>
+            <div id="service-status">
+                <span class="status-dot" id="status-agent"></span> Agent
+                <span class="status-dot" id="status-vision"></span> Vision
+                <span class="status-dot" id="status-robot"></span> Robot
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Tab Content (full width — no separate left panel) -->
+            <section id="controls">
+                <div class="tab-content">
+                    <!-- ════════════════════════════════════════════════════════ -->
+                    <!-- GAME TAB — 2-column layout per wireframe               -->
+                    <!-- ════════════════════════════════════════════════════════ -->
+                    <div class="tab-panel active" id="tab-main">
+                        <div class="game-layout">
+                            <!-- Game Over Overlay -->
+                            <div id="game-over-overlay" style="display:none; position:absolute; inset:0; z-index:100; align-items:center; justify-content:center; flex-direction:column; gap:16px; border-radius:var(--radius-md);">
+                                <div id="game-over-icon" style="font-size:128px; line-height:1; filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));"></div>
+                                <div id="game-over-title" style="font-size:48px; font-weight:bold; text-align:center; background:linear-gradient(180deg, #ffd700, #ffaa00); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; filter:drop-shadow(0 2px 8px rgba(255,170,0,0.4));"></div>
+                                <div id="game-over-detail" style="font-size:28px; text-align:center; color:#fff; background:rgba(0,0,0,0.5); padding:8px 24px; border-radius:8px; border:1px solid rgba(255,170,0,0.3);"></div>
+                                <button id="btn-game-over-dismiss" class="secondary" style="margin-top:12px; padding:10px 32px; font-size:16px;">OK</button>
+                            </div>
+                            <!-- LEFT COLUMN: Chess Board + Info + Chat -->
+                            <div class="game-left">
+                                <div id="chess-board"></div>
+                                <div id="game-info">
+                                    <p><strong>Status:</strong> <span id="game-status">No game</span></p>
+                                    <p><strong>Turn:</strong> <span id="whose-turn">-</span></p>
+                                    <p><strong>Move:</strong> <span id="move-number">-</span></p>
+                                    <p><strong>Mode:</strong> <span id="current-mode">battle</span></p>
+                                </div>
+                                <div id="last-moves">
+                                    <p><strong><span id="human-label">You</span>:</strong> <span id="last-human-move">-</span></p>
+                                    <p><strong><span id="robot-label">AI</span>:</strong> <span id="last-robot-move">-</span></p>
+                                </div>
+
+                            </div>
+
+                            <!-- RIGHT COLUMN: Mode + Start/Stop + Camera + Chat -->
+                            <div class="game-right">
+                                <!-- Mode + Difficulty/Lesson -->
+                                <div class="game-mode-bar">
+                                    <div id="mode-buttons">
+                                        <button data-mode="battle" class="mode-btn active">Battle</button>
+                                        <button data-mode="teach" class="mode-btn">Teach</button>
+                                        <button data-mode="watch" class="mode-btn">Watch</button>
+                                    </div>
+                                    <div id="battle-config" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                        <select id="difficulty-select" style="padding:4px 8px; border-radius:4px; border:1px solid var(--border); font-size:13px;">
+                                            <option value="beginner">Beginner</option>
+                                            <option value="intermediate" selected>Intermediate</option>
+                                            <option value="advanced">Advanced</option>
+                                            <option value="master">Master</option>
+                                        </select>
+                                        <select id="game-engine-select" style="padding:4px 8px; border-radius:4px; border:1px solid var(--border); font-size:13px;">
+                                            <option value="stockfish">Stockfish</option>
+                                            <option value="llm">LLM 1</option>
+                                            <option value="llm2">LLM 2</option>
+                                            <option value="llm3">LLM 3</option>
+                                        </select>
+                                        <select id="game-character-select" style="padding:4px 8px; border-radius:4px; border:1px solid var(--border); font-size:13px; max-width:180px;">
+                                            <option value="">Default Character</option>
+                                        </select>
+                                    </div>
+                                    <div id="teach-config" style="display:none;">
+                                        <select id="lesson-select" style="padding:4px 8px; border-radius:4px; border:1px solid var(--border); font-size:13px; max-width:200px;">
+                                            <option value="">Loading lessons...</option>
+                                        </select>
+                                        <p id="lesson-description" style="font-size:11px; color:var(--text-secondary); margin:2px 0 0 0;"></p>
+                                    </div>
+                                    <div id="watch-config" style="display:none; font-size:12px;">
+                                        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                                            <div style="display:flex; gap:4px; align-items:center;">
+                                                <strong>W:</strong>
+                                                <select id="watch-white-engine" style="padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-size:12px;">
+                                                    <option value="stockfish">Stockfish</option>
+                                                    <option value="llm">LLM 1</option>
+                                                    <option value="llm2">LLM 2</option>
+                                                    <option value="llm3">LLM 3</option>
+                                                </select>
+                                                <select id="watch-white-difficulty" style="padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-size:12px;">
+                                                    <option value="beginner">Beginner</option>
+                                                    <option value="intermediate" selected>Intermediate</option>
+                                                    <option value="advanced">Advanced</option>
+                                                    <option value="master">Master</option>
+                                                </select>
+                                                <select id="watch-white-character" style="padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-size:12px; max-width:120px;">
+                                                    <option value="">Default</option>
+                                                </select>
+                                            </div>
+                                            <span>vs</span>
+                                            <div style="display:flex; gap:4px; align-items:center;">
+                                                <strong>B:</strong>
+                                                <select id="watch-black-engine" style="padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-size:12px;">
+                                                    <option value="stockfish">Stockfish</option>
+                                                    <option value="llm">LLM 1</option>
+                                                    <option value="llm2">LLM 2</option>
+                                                    <option value="llm3">LLM 3</option>
+                                                </select>
+                                                <select id="watch-black-difficulty" style="padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-size:12px;">
+                                                    <option value="beginner">Beginner</option>
+                                                    <option value="intermediate" selected>Intermediate</option>
+                                                    <option value="advanced">Advanced</option>
+                                                    <option value="master">Master</option>
+                                                </select>
+                                                <select id="watch-black-character" style="padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-size:12px; max-width:120px;">
+                                                    <option value="">Default</option>
+                                                </select>
+                                            </div>
+                                            <div style="display:flex; gap:4px; align-items:center;">
+                                                <label>Delay:<input type="number" id="watch-move-delay" value="3" min="1" max="10" step="0.5" style="width:50px; padding:3px; font-size:12px;">s</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Game Start/Stop + Camera (side by side) -->
+                                <div style="display:flex; gap:12px; align-items:stretch; flex-wrap:wrap;">
+                                    <div class="game-bottom-bar" style="flex:1; min-width:200px;">
+                                        <div id="game-options">
+                                            <label><input type="radio" name="robot-color" value="black" checked> LLM Black</label>
+                                            <label><input type="radio" name="robot-color" value="white"> LLM White</label>
+                                            <label><input type="checkbox" id="simulation-mode" checked> Simulation Mode</label>
+                                            <label><input type="checkbox" id="voice-output-enabled" checked> Voice Output</label>
+                                        </div>
+                                        <div style="display:flex; gap:8px; align-items:center;">
+                                            <button id="btn-start" class="primary">Start Game</button>
+                                            <button id="btn-stop" class="danger">Stop Game</button>
+                                        </div>
+                                    </div>
+                                    <div class="control-group game-camera" style="flex:1; min-width:200px; margin:0;">
+                                        <div id="vision-preview">
+                                            <img id="vision-image" />
+                                        </div>
+                                        <div id="vision-detect-bar" style="display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap;">
+                                            <pre id="vision-output" style="flex:1; margin:0; font-size:11px; min-height:20px;"></pre>
+                                            <span id="auto-detect-status" style="font-size:11px; color:var(--text-secondary);"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Move submission (battle) + Teach controls — near start/stop -->
+                                <div id="move-submit-bar" class="game-bottom-bar" style="display:none;">
+                                    <input id="input-manual-move" type="text" placeholder="e.g. e2e4" maxlength="5"
+                                        style="width:80px; padding:4px 8px; font-family:monospace; font-size:13px; border:1px solid var(--border); border-radius:4px;">
+                                    <button id="btn-submit-move" class="secondary" style="width:auto;" title="Submit move manually">Submit Move</button>
+                                </div>
+
+                                <div id="teach-panel" class="game-bottom-bar" style="display:none;">
+                                    <div style="flex:1; min-width:0;">
+                                        <strong id="teach-title" style="font-size:13px;">Lesson</strong>
+                                        <span id="teach-step-info" style="font-size:12px; color:var(--text-secondary); margin-left:8px;"></span>
+                                        <p id="teach-instruction" style="font-size:12px; margin:2px 0 0 0;"></p>
+                                        <p id="teach-feedback" style="font-size:12px; color:var(--accent); margin:2px 0 0 0;"></p>
+                                        <p id="teach-conclusion" style="font-size:12px; color:var(--success, #27ae60); margin:2px 0 0 0; display:none;"></p>
+                                        <p id="teach-detect-status" style="font-size:11px; color:var(--text-secondary); margin:2px 0 0 0;"></p>
+                                    </div>
+                                    <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                        <button id="btn-teach-moved" class="secondary">I Made My Move</button>
+                                        <button id="btn-teach-hint" class="secondary">Hint</button>
+                                        <button id="btn-teach-next" class="secondary" style="display:none;">Next Step</button>
+                                        <button id="btn-teach-stop" class="danger">End Lesson</button>
+                                    </div>
+                                </div>
+
+                                <!-- Chat -->
+                                <div class="control-group game-chat">
+                                    <h3>Chat</h3>
+                                    <div id="chat-history"></div>
+                                    <div id="chat-input-area">
+                                        <input type="text" id="chat-input" placeholder="Type a message...">
+                                        <button id="mic-toggle-btn" class="mic-toggle" title="Toggle microphone">
+                                            <svg class="mic-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                                <line x1="12" y1="19" x2="12" y2="23"/>
+                                                <line x1="8" y1="23" x2="16" y2="23"/>
+                                            </svg>
+                                            <svg class="mic-slash" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                                                <line x1="1" y1="1" x2="23" y2="23"/>
+                                                <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/>
+                                                <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .68-.09 1.33-.26 1.95"/>
+                                                <line x1="12" y1="19" x2="12" y2="23"/>
+                                                <line x1="8" y1="23" x2="16" y2="23"/>
+                                            </svg>
+                                        </button>
+                                        <button id="btn-send">Send</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+                    <!-- ════════════════════════════════════════════════════════ -->
+                    <!-- AGENT TAB                                               -->
+                    <!-- ════════════════════════════════════════════════════════ -->
+                    <div class="tab-panel" id="tab-agent">
+                        <div class="agent-grid">
+                            <!-- Row 1 -->
+                            <div class="control-group">
+                                <h3 id="language-label">Language</h3>
+                                <select id="language-select" style="width:100%; padding:4px 8px; border-radius:4px; border:1px solid var(--border); font-size:13px; margin-bottom:6px;">
+                                    <option value="en">English</option>
+                                    <option value="zh-TW" selected>繁體中文</option>
+                                    <option value="zh-CN">简体中文</option>
+                                    <option value="custom">Custom...</option>
+                                </select>
+                                <div id="custom-lang-row" style="display:none; gap:4px; margin-top:4px;">
+                                    <input type="text" id="custom-language" placeholder="e.g. Japanese, Korean, Spanish..."
+                                        style="flex:1; padding:4px 8px; font-size:13px; border:1px solid var(--border); border-radius:4px;">
+                                    <button id="btn-set-custom-lang" class="primary" style="width:auto; font-size:12px; padding:4px 10px;">Set</button>
+                                </div>
+                                <div id="language-buttons" style="display:none;">
+                                    <button data-lang="en" class="lang-btn">English</button>
+                                    <button data-lang="zh-TW" class="lang-btn active">繁體中文</button>
+                                    <button data-lang="zh-CN" class="lang-btn">简体中文</button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h3>Battle Character</h3>
+                                <select id="character-select" style="width:100%; padding:4px 8px; border-radius:4px; border:1px solid var(--border); font-size:13px; margin-bottom:6px;">
+                                    <option value="">-- New Character --</option>
+                                </select>
+                                <input type="text" id="character-input" placeholder="Title: e.g. Sarcastic Pirate"
+                                    style="width:100%; padding:4px 8px; font-size:13px; border:1px solid var(--border); border-radius:4px; margin-bottom:6px;">
+                                <textarea id="character-desc" maxlength="200" placeholder="Personality description (max 200 chars)..."
+                                    style="width:100%; height:55px; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px; resize:vertical; font-family:var(--font-body);"></textarea>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                                    <div style="display:flex; gap:4px;">
+                                        <button id="btn-char-save" class="primary" style="width:auto; font-size:11px; padding:3px 10px;">Save</button>
+                                        <button id="btn-char-delete" class="danger" style="width:auto; font-size:11px; padding:3px 10px;">Delete</button>
+                                        <button id="btn-char-generate" class="secondary" style="width:auto; font-size:11px; padding:3px 10px;">AI Desc</button>
+                                        <button id="btn-char-random" class="secondary" style="width:auto; font-size:11px; padding:3px 10px;">Random</button>
+                                    </div>
+                                    <span id="character-desc-count" style="font-size:11px; color:var(--text-muted);">0 / 200</span>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h3>Lessons</h3>
+                                <select id="agent-lesson-list" style="width:100%; padding:4px 8px; border-radius:4px; border:1px solid var(--border); font-size:13px; margin-bottom:6px;">
+                                    <option value="">-- Select / New --</option>
+                                </select>
+                                <div style="display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
+                                    <select id="lesson-difficulty" style="padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-size:12px;">
+                                        <option value="beginner">Beginner</option>
+                                        <option value="intermediate">Intermediate</option>
+                                        <option value="master">Master</option>
+                                    </select>
+                                    <input type="text" id="lesson-topic" placeholder="Topic: e.g. Queen's Gambit"
+                                        style="flex:1; padding:3px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                </div>
+                                <div style="display:flex; gap:4px; margin-bottom:6px;">
+                                    <button id="btn-lesson-generate" class="secondary" style="width:auto; font-size:11px; padding:3px 10px;">AI Generate</button>
+                                    <button id="btn-lesson-random" class="secondary" style="width:auto; font-size:11px; padding:3px 10px;">Random</button>
+                                    <button id="btn-lesson-save" class="primary" style="width:auto; font-size:11px; padding:3px 10px;">Save</button>
+                                    <button id="btn-lesson-delete" class="danger" style="width:auto; font-size:11px; padding:3px 10px;">Delete</button>
+                                </div>
+                                <div id="agent-lesson-detail" style="font-size:11px; font-family:var(--font-mono); color:var(--text-secondary); background:var(--bg-inset); padding:8px; border-radius:4px; min-height:60px; max-height:200px; overflow-y:auto; white-space:pre-wrap;">
+                                    Select a lesson or generate a new one.
+                                </div>
+                            </div>
+
+                            <!-- Row 2 -->
+                            <div class="control-group">
+                                <h3>API Settings</h3>
+                                <div style="display:flex; flex-direction:column; gap:6px; font-size:12px;">
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        Move by:
+                                        <select id="move-source-select" style="padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-size:12px;">
+                                            <option value="stockfish" selected>Stockfish</option>
+                                            <option value="llm">LLM 1</option>
+                                            <option value="llm2">LLM 2</option>
+                                            <option value="llm3">LLM 3</option>
+                                        </select>
+                                    </label>
+                                    <div style="font-size:10px; color:var(--text-muted); background:var(--bg-inset); padding:6px 8px; border-radius:4px; margin-bottom:4px; line-height:1.5;">
+                                        <strong>Provider Setup:</strong><br>
+                                        OpenAI: Key=<code>sk-...</code> Model=<code>gpt-4o</code> URL=(blank)<br>
+                                        Gemini: Key=Google AI key, Model=<code>gemini-3.1-pro-preview</code> URL=<code>https://generativelanguage.googleapis.com/v1beta/openai/</code><br>
+                                        Claude: Key=<code>sk-ant-...</code> Model=<code>claude-sonnet-4-6</code> URL=<code>https://api.anthropic.com/v1/</code>
+                                    </div>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        API Key:
+                                        <input type="password" id="setting-llm-api-key" placeholder="sk-..." style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        LLM Model:
+                                        <input type="text" id="setting-llm-model" placeholder="gpt-4o" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        Base URL:
+                                        <input type="text" id="setting-llm-base-url" placeholder="(blank = OpenAI)" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <div style="border-top:1px solid var(--border); margin:4px 0; padding-top:4px;">
+                                        <span style="font-size:11px; color:var(--text-muted);">LLM 2 (Watch mode — set a different provider to pit them against each other):</span>
+                                    </div>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        Model 2:
+                                        <input type="text" id="setting-llm-model-2" placeholder="e.g. gemini-3.1-pro-preview" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        API Key 2:
+                                        <input type="password" id="setting-llm-api-key-2" placeholder="(different provider key)" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        Base URL 2:
+                                        <input type="text" id="setting-llm-base-url-2" placeholder="(provider endpoint)" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <div style="border-top:1px solid var(--border); margin:4px 0; padding-top:4px;">
+                                        <span style="font-size:11px; color:var(--text-muted);">LLM 3 (third provider):</span>
+                                    </div>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        Model 3:
+                                        <input type="text" id="setting-llm-model-3" placeholder="e.g. claude-sonnet-4-6" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        API Key 3:
+                                        <input type="password" id="setting-llm-api-key-3" placeholder="(provider key)" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        Base URL 3:
+                                        <input type="text" id="setting-llm-base-url-3" placeholder="(provider endpoint)" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        TTS:
+                                        <select id="setting-tts-provider" style="padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-size:12px;">
+                                            <option value="openai">OpenAI</option>
+                                            <option value="cosyvoice">CosyVoice</option>
+                                        </select>
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        TTS Voice:
+                                        <input type="text" id="setting-tts-voice" placeholder="alloy" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        CosyVoice URL:
+                                        <input type="text" id="setting-tts-url" placeholder="http://192.168.50.1:8003" style="flex:1; padding:3px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                                    </label>
+                                    <button id="btn-save-settings" class="primary" style="font-size:12px; padding:4px 12px; align-self:flex-start;">Save Settings</button>
+                                    <div id="settings-status" style="font-size:11px; color:var(--text-muted);"></div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h3>Voice Input</h3>
+                                <div id="voice-controls" style="display:flex; flex-direction:column; gap:8px;">
+                                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                        <label style="font-size:13px;">
+                                            <input type="checkbox" id="voice-enabled">
+                                            Enable
+                                        </label>
+                                        <select id="voice-listening-mode" style="font-size:13px; padding:3px 6px; border-radius:4px; border:1px solid var(--border);">
+                                            <option value="push_to_talk" selected>Push to Talk</option>
+                                            <option value="always_on">Always On (VAD)</option>
+                                        </select>
+                                    </div>
+                                    <!-- VAD Settings -->
+                                    <div id="vad-settings" style="display:none; font-size:12px;">
+                                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:4px;">
+                                            <label>Threshold: <input type="number" id="vad-threshold-input" value="80" min="10" max="200" step="5" style="width:55px; font-size:12px;"></label>
+                                            <label>Silence(ms): <input type="number" id="vad-silence-input" value="1500" min="500" max="5000" step="100" style="width:65px; font-size:12px;"></label>
+                                            <label>Min Speech(ms): <input type="number" id="vad-min-speech-input" value="2000" min="300" max="5000" step="100" style="width:65px; font-size:12px;"></label>
+                                        </div>
+                                        <button id="btn-vad-save" class="secondary" style="font-size:11px; padding:3px 10px; width:auto;">Save VAD Settings</button>
+                                    </div>
+                                    <div style="display:flex; gap:8px; align-items:center;">
+                                        <button id="btn-mic" class="primary" style="min-width:90px; font-size:13px; padding:8px 14px;" disabled>
+                                            Hold to Talk
+                                        </button>
+                                        <span id="voice-status-indicator" style="font-size:12px; color:var(--text-secondary);">Idle</span>
+                                        <div id="vad-volume-meter" style="width:60px; height:5px; background:var(--bg-inset); border-radius:3px; overflow:hidden; display:none;">
+                                            <div id="vad-volume-bar" style="width:0%; height:100%; background:#22c55e; transition:width 50ms;"></div>
+                                        </div>
+                                    </div>
+                                    <div id="voice-transcript" style="font-size:11px; font-family:var(--font-mono); background:var(--bg-inset); padding:6px; border-radius:4px; min-height:36px; max-height:80px; overflow-y:auto; color:var(--text-secondary);">
+                                        <em>Transcripts...</em>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h3>Voice Output</h3>
+                                <button id="btn-speak-test" class="secondary" style="width:100%;">Test TTS</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ════════════════════════════════════════════════════════ -->
+                    <!-- VISION TAB                                              -->
+                    <!-- ════════════════════════════════════════════════════════ -->
+                    <div class="tab-panel" id="tab-vision">
+                        <!-- Debug Camera View -->
+                        <div class="control-group">
+                            <h3>Debug Camera View</h3>
+                            <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+                                <button id="btn-vcam-rgb" class="primary">RGB</button>
+                                <button id="btn-vcam-depth" class="secondary">Depth</button>
+                                <button id="btn-vcam-yolo" class="secondary">YOLO</button>
+                                <button id="btn-vcam-stop" class="danger">Stop</button>
+                            </div>
+                            <div style="background:#000; border-radius:4px; min-height:240px; max-height:480px; overflow:hidden;">
+                                <img id="vcam-image" style="width:100%; max-height:480px; object-fit:contain; display:block;" />
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Camera Capture</h3>
+                            <div class="button-grid">
+                                <button id="btn-camera-frame" class="secondary">RGB Frame</button>
+                                <button id="btn-depth-frame" class="secondary">Depth Frame</button>
+                                <button id="btn-detect-apriltag" class="secondary">Detect AprilTag</button>
+                                <button id="btn-capture-board" class="secondary">Capture Board</button>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Training Data</h3>
+                            <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                                <label style="white-space:nowrap;">Label:</label>
+                                <input type="text" id="training-label" placeholder="e.g. pawn, board (optional)" style="flex:1;">
+                            </div>
+                            <div class="button-grid">
+                                <button id="btn-save-training" class="warning">Save Training Image</button>
+                            </div>
+                            <div id="training-count" style="margin-top:6px; font-size:0.85em; color:var(--text-secondary);"></div>
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Pipeline Debug</h3>
+                            <p style="font-size:11px; color:var(--text-muted);">
+                                Run the vision pipeline step-by-step to diagnose recognition failures.
+                            </p>
+                            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                                <button id="btn-run-debug" class="primary">Run Debug Pipeline</button>
+                                <button id="btn-manual-capture" class="secondary">Capture Board (Vision)</button>
+                            </div>
+                            <div id="debug-status" style="margin-top:8px; font-size:12px;"></div>
+                        </div>
+
+                        <div id="debug-steps"></div>
+                    </div>
+
+                    <!-- ════════════════════════════════════════════════════════ -->
+                    <!-- ROBOT TAB                                               -->
+                    <!-- ════════════════════════════════════════════════════════ -->
+                    <div class="tab-panel" id="tab-robot">
+                        <!-- 2-column: Manual Control | Teaching -->
+                        <div class="robot-columns">
+                            <!-- LEFT: Manual Control -->
+                            <div class="robot-col">
+                                <div class="robot-section-header">Manual Control</div>
+
+                                <div class="control-group">
+                                    <h3>Connection</h3>
+                                    <div class="connection-status">
+                                        <span class="status-indicator" id="robot-connection-indicator"></span>
+                                        <span id="robot-connection-text">Disconnected</span>
+                                    </div>
+                                    <div class="button-grid">
+                                        <button id="btn-robot-connect" class="primary">Connect</button>
+                                        <button id="btn-robot-mock" class="secondary">Mock Connect</button>
+                                        <button id="btn-robot-disconnect" class="danger">Disconnect</button>
+                                    </div>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Arm Control</h3>
+                                    <div class="button-grid">
+                                        <button id="btn-robot-home" class="secondary">Home</button>
+                                        <button id="btn-robot-sleep" class="secondary">Sleep</button>
+                                    </div>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Gripper</h3>
+                                    <div class="button-grid">
+                                        <button id="btn-gripper-open" class="secondary">Open</button>
+                                        <button id="btn-gripper-close" class="secondary">Close</button>
+                                    </div>
+                                    <div class="jog-controls">
+                                        <input type="range" id="gripper-slider" min="0" max="100" value="50" style="width:150px;">
+                                        <button id="btn-gripper-set" class="secondary">Set</button>
+                                    </div>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Manual Move (XYZ)</h3>
+                                    <div style="display:flex; gap:5px; margin-bottom:5px; flex-wrap:wrap;">
+                                        <label>X:<input type="number" id="move-x" value="0.25" step="0.01" style="width:110px;">m</label>
+                                        <label>Y:<input type="number" id="move-y" value="0.00" step="0.01" style="width:110px;">m</label>
+                                        <label>Z:<input type="number" id="move-z" value="0.15" step="0.01" style="width:110px;">m</label>
+                                        <label>Z+:<input type="number" id="z-offset" value="3" step="0.5" style="width:70px;">cm</label>
+                                    </div>
+                                    <div style="display:flex; gap:5px; margin-bottom:5px; flex-wrap:wrap;">
+                                        <label>Pitch:<input type="number" id="move-pitch" value="90" step="1" style="width:90px;">&deg;</label>
+                                        <label>&plusmn;<input type="number" id="pitch-tolerance" value="5" step="1" min="0" max="30" style="width:70px;">&deg;</label>
+                                        <label><input type="checkbox" id="auto-orientation"> Auto</label>
+                                    </div>
+                                    <button id="btn-move-xyz" class="secondary">Move to XYZ</button>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Motor Recovery</h3>
+                                    <div class="button-grid">
+                                        <button id="btn-reboot-wrist" class="warning">Reboot Wrist</button>
+                                        <button id="btn-reboot-all" class="warning">Reboot All</button>
+                                        <button id="btn-torque-off" class="warning">Torque OFF</button>
+                                        <button id="btn-torque-on" class="secondary">Torque ON</button>
+                                    </div>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Output</h3>
+                                    <pre id="robot-output" style="max-height:120px; overflow:auto; font-size:11px;"></pre>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Camera-Robot Calibration</h3>
+                                    <div class="calibration-status" style="margin-bottom:6px;">
+                                        <span id="calib-status-text">Not calibrated</span>
+                                        <span id="calib-point-count">(0 points)</span>
+                                    </div>
+                                    <button id="btn-detect-calib-tags" class="primary" style="margin-bottom:6px;">Detect Tags</button>
+                                    <div id="calib-tags-list" style="font-size:12px; margin-bottom:6px;"><em>No tags detected</em></div>
+                                    <select id="calib-tag-select" style="width:100%; margin-bottom:6px;">
+                                        <option value="">-- Select a tag --</option>
+                                    </select>
+                                    <button id="btn-record-calib-point" class="secondary" style="margin-bottom:6px;">Record Robot Position</button>
+                                    <div id="calib-points-list" style="font-size:12px; margin-bottom:6px;"><em>No points recorded</em></div>
+                                    <div class="button-grid">
+                                        <button id="btn-compute-calib" class="primary">Compute</button>
+                                        <button id="btn-clear-calib" class="danger">Clear</button>
+                                        <button id="btn-load-calib" class="secondary">Load Saved</button>
+                                        <button id="btn-test-transform" class="secondary">Test Transform</button>
+                                        <button id="btn-move-to-tag" class="primary">Move to Tag</button>
+                                    </div>
+                                    <pre id="calib-output" style="max-height:80px; overflow:auto; font-size:10px; margin-top:6px;"></pre>
+                                    <pre id="transform-result" style="font-size:10px; margin-top:4px;"></pre>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Camera Stream</h3>
+                                    <div id="robot-camera-preview" style="background:#000; border-radius:4px; overflow:hidden; max-width:100%;">
+                                        <img id="robot-camera-image" style="width:100%; display:block;" />
+                                    </div>
+                                    <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+                                        <button id="btn-robot-stream-rgb" class="secondary">RGB Stream</button>
+                                        <button id="btn-robot-stream-depth" class="secondary">Depth Stream</button>
+                                        <button id="btn-robot-stream-stop" class="danger">Stop</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- RIGHT: Teaching -->
+                            <div class="robot-col">
+                                <div class="robot-section-header">Point &amp; Pose Teaching</div>
+
+                                <div class="control-group">
+                                    <h3>Waypoints</h3>
+                                    <p style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">Named positions. Use tags for work/vision.</p>
+                                    <div class="waypoint-controls">
+                                        <input type="text" id="waypoint-name" placeholder="Name">
+                                        <select id="waypoint-tag" style="width:120px;">
+                                            <option value="">(no tag)</option>
+                                            <option value="work_position">work_position</option>
+                                            <option value="vision_position">vision_position</option>
+                                            <option value="capture_zone">capture_zone</option>
+                                        </select>
+                                        <button id="btn-save-waypoint" class="secondary">Save</button>
+                                    </div>
+                                    <select id="waypoint-list" size="5"></select>
+                                    <div id="waypoint-tag-display" style="font-size:11px; color:var(--text-secondary); margin-top:2px;"></div>
+                                    <div class="waypoint-buttons">
+                                        <button id="btn-goto-waypoint" class="primary">Go To</button>
+                                        <button id="btn-delete-waypoint" class="danger">Delete</button>
+                                        <button id="btn-refresh-waypoints" class="secondary">Refresh</button>
+                                    </div>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Gestures</h3>
+                                    <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px; flex-wrap:wrap;">
+                                        <input type="text" id="gesture-name" placeholder="Name" style="width:110px;">
+                                        <button id="btn-gesture-record" class="primary">Record</button>
+                                        <button id="btn-gesture-stop-record" class="danger" disabled>Stop</button>
+                                    </div>
+                                    <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+                                        <button id="btn-gesture-play" class="secondary" disabled>Play</button>
+                                        <button id="btn-gesture-stop-play" class="secondary" disabled>Stop</button>
+                                        <button id="btn-gesture-delete" class="danger" disabled>Del</button>
+                                        <button id="btn-gesture-refresh" class="secondary">Refresh</button>
+                                    </div>
+                                    <select id="gesture-list" size="4" style="width:100%; font-family:monospace; font-size:12px;"></select>
+                                    <div id="gesture-status" style="margin-top:4px; font-size:12px; color:var(--text-secondary);"></div>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Board Surface Z</h3>
+                                    <div style="display:flex; gap:8px; align-items:center;">
+                                        <button id="btn-teach-board-z" class="primary">Teach Board Z</button>
+                                        <span id="board-z-value" style="font-size:13px; color:var(--text-secondary);">Not set</span>
+                                    </div>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>Square Positions</h3>
+                                    <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px; flex-wrap:wrap;">
+                                        <button id="btn-sq-record" class="primary" disabled>Record</button>
+                                        <button id="btn-sq-goto" class="secondary" disabled>Go To</button>
+                                        <button id="btn-sq-goto-low" class="secondary" disabled>Go Low</button>
+                                        <button id="btn-sq-delete" class="danger" disabled>Del</button>
+                                    </div>
+                                    <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px; flex-wrap:wrap;">
+                                        <button id="btn-sq-load" class="secondary">Load</button>
+                                        <button id="btn-sq-clear" class="danger">Clear</button>
+                                        <button id="btn-sq-autotest" class="secondary">Auto Test</button>
+                                        <button id="btn-sq-autotest-stop" class="danger" style="display:none;">Stop</button>
+                                        <span id="sq-count" style="font-size:11px; color:var(--text-secondary);">0/64</span>
+                                    </div>
+                                    <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+                                        <label style="font-size:11px;">X<input id="sq-pos-x" type="number" step="0.001" style="width:70px; font-size:11px; font-family:monospace;"></label>
+                                        <label style="font-size:11px;">Y<input id="sq-pos-y" type="number" step="0.001" style="width:70px; font-size:11px; font-family:monospace;"></label>
+                                        <label style="font-size:11px;">Z<input id="sq-pos-z" type="number" step="0.001" style="width:70px; font-size:11px; font-family:monospace;"></label>
+                                        <label style="font-size:11px;">Z+<input id="sq-pos-z-offset" type="number" step="0.001" value="0.150" style="width:70px; font-size:11px; font-family:monospace;"></label>
+                                    </div>
+                                    <div id="sq-teach-status" style="margin-top:4px; font-size:11px; color:var(--text-secondary);"></div>
+                                    <pre id="sq-autotest-result" style="display:none; margin-top:6px; font-size:10px; font-family:monospace; background:var(--bg-inset); color:var(--text-primary); padding:6px; border-radius:4px; max-height:150px; overflow-y:auto; white-space:pre-wrap;"></pre>
+                                    <div id="sq-position-board" style="display:grid; grid-template-columns:auto repeat(8,1fr); grid-template-rows:repeat(8,1fr) auto; gap:0; width:100%; max-width:320px; font-size:9px; font-family:monospace; user-select:none; margin-top:6px;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>Chess with LLM | <span id="connection-status">Connecting...</span></p>
+        </footer>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container"></div>
+    <style>
+        #toast-container {
+            position: fixed; top: 16px; right: 16px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 8px; max-width: 360px;
+        }
+        .toast {
+            padding: 10px 32px 10px 14px; border-radius: 6px;
+            color: #fff; font-size: 13px; position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,.25);
+            opacity: 1; transition: opacity .3s;
+        }
+        .toast-info    { background: #2563eb; }
+        .toast-success { background: #16a34a; }
+        .toast-warning { background: #d97706; }
+        .toast-error   { background: #dc2626; }
+        .toast-close {
+            position: absolute; top: 6px; right: 8px; cursor: pointer;
+            font-size: 16px; line-height: 1; opacity: .7;
+        }
+        .toast-close:hover { opacity: 1; }
+    </style>
+
+    <div id="promotion-dialog" style="display:none; position:fixed; inset:0; z-index:100;">
+        <div style="position:absolute; inset:0; background:rgba(0,0,0,0.5);" onclick="cancelPromotion()"></div>
+        <div class="promotion-picker" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--bg-secondary,#f4f4f6); border-radius:12px; padding:16px; display:flex; gap:8px; z-index:101; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=132"></script>
+</body>
+</html>

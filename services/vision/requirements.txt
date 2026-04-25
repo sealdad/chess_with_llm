@@ -1,0 +1,17 @@
+# Vision Service Dependencies
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+pydantic>=2.0.0
+
+# Vision pipeline dependencies
+opencv-python>=4.8.0
+numpy>=1.24.0
+torch>=2.0.0
+ultralytics>=8.0.0
+pyrealsense2>=2.54.0
+PyYAML>=6.0
+
+# Calibration dependencies
+pupil-apriltags>=1.0.0
+scipy>=1.10.0

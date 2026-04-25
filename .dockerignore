@@ -1,0 +1,76 @@
+# Build context excludes — keeps `docker build` fast.
+# Tracked files referenced by Dockerfiles still get copied; everything
+# else listed here is excluded from the context tarball.
+
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+env/
+*.egg-info/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+.claude/
+.pytest_cache/
+
+# Runtime data (not needed at build time — mounted as volumes)
+captures/
+runs/
+chess_vision/captures/
+chess_vision/examples/
+corner_data/
+calib_images/
+training/
+training_*/
+reference_voices/
+snap/
+
+# Calibration / runtime YAMLs (mounted as volumes)
+agent_settings.yaml
+waypoints.yaml
+square_positions.yaml
+board_surface_z.yaml
+camera_robot_calibration.yaml
+camera_intrinsics_chess.yaml
+capture_zone_position.yaml
+promotion_queen_position.yaml
+hand_eye_calibration.yaml
+gestures.yaml
+level2_positions.yaml
+
+# Lessons (mounted as volume; not baked into image)
+lessons/
+
+# Debug / test artifacts
+debug_*.jpg
+debug_*.png
+test_*.jpg
+test_*.png
+test_*.mp3
+*.mp3
+*.wav
+build.log
+*.log
+calibration_error_analysis.txt
+
+# Docs / READMEs (not needed in image)
+README.md
+README.zh-TW.md
+docs/
+CLAUDE.md
+PLAN.md
+memo.md
+
+# Docker compose itself
+docker-compose*.yaml

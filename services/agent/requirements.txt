@@ -1,0 +1,21 @@
+# Agent Service Dependencies
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+httpx>=0.25.0
+
+# Chess logic
+python-chess>=1.10.0
+stockfish>=3.28.0
+
+# LLM (optional)
+langchain>=0.3.0
+langchain-openai>=0.2.0
+openai>=1.0.0
+
+# Voice services (STT/TTS)
+websockets>=11.0
+pydub>=0.25.1
+
+# Chinese Traditional → Simplified conversion
+opencc-python-reimplemented>=0.1.7

@@ -1,0 +1,28 @@
+# CosyVoice TTS Service — standalone deployment
+# Run this on the RTX 4090 machine, then point the agent to it:
+#   TTS_PROVIDER=cosyvoice TTS_SERVICE_URL=http://<this-machine-ip>:8003
+#
+# Build & run:
+#   docker compose build
+#   docker compose up -d
+
+version: "2.4"
+
+services:
+  tts:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chess-tts
+    runtime: nvidia
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./main.py:/app/main.py:ro
+      - ../../reference_voices:/app/reference_voices:rw
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      MODEL_DIR: /app/pretrained_models/Fun-CosyVoice3-0.5B-2512
+      DEFAULT_SPEAKER: ${DEFAULT_SPEAKER:-}
+    restart: unless-stopped

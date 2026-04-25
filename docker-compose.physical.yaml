@@ -1,0 +1,98 @@
+# Chess with LLM — physical mode (agent + vision + robot)
+#
+# Full hardware setup:
+#   - Intel RealSense D4xx camera on /dev/video*
+#   - Interbotix RX-200 arm on /dev/ttyUSB0
+#
+# Usage:
+#   docker-compose -f docker-compose.physical.yaml up
+#
+# Robot service uses network_mode: host for ROS 1 compatibility.
+# First-time setup needs AprilTag hand-eye calibration + 64-square
+# teaching — see docs/ROBOT.md (or docs/ROBOT.zh-TW.md).
+
+version: "3"
+
+services:
+  vision:
+    image: sealdad-vision:latest
+    build:
+      context: .
+      dockerfile: services/vision/Dockerfile
+    container_name: chess-vision
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./chess_vision:/app/chess_vision:ro
+      - ./services/vision/main.py:/app/main.py:ro
+      - ./captures:/app/captures:rw
+      - ./runs:/home/sealdad/sealdad_project/runs:ro
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/video1:/dev/video1
+      - /dev/video2:/dev/video2
+      - /dev/video3:/dev/video3
+      - /dev/video4:/dev/video4
+      - /dev/video5:/dev/video5
+    privileged: true
+
+  robot:
+    image: sealdad-robot:latest
+    build:
+      context: .
+      dockerfile: services/robot/Dockerfile
+    container_name: chess-robot
+    command: ["/bin/bash", "/app/start.sh"]
+    network_mode: host
+    volumes:
+      - ./hand_eye_calibration.yaml:/app/hand_eye_calibration.yaml:ro
+      - ./services/robot/main.py:/app/main.py:ro
+      - ./rx200_agent:/app/rx200_agent:ro
+      - ./waypoints.yaml:/app/waypoints.yaml:rw
+      - ./camera_robot_calibration.yaml:/app/camera_robot_calibration.yaml:rw
+      - ./capture_zone_position.yaml:/app/capture_zone_position.yaml:rw
+      - ./promotion_queen_position.yaml:/app/promotion_queen_position.yaml:rw
+      - ./square_positions.yaml:/app/square_positions.yaml:rw
+      - ./board_surface_z.yaml:/app/board_surface_z.yaml:rw
+      - ./gestures.yaml:/app/gestures.yaml:rw
+    environment:
+      ROS_MASTER_URI: http://localhost:11311
+      ROS_HOSTNAME: localhost
+    privileged: true
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+
+  agent:
+    image: sealdad-agent:latest
+    build:
+      context: .
+      dockerfile: services/agent/Dockerfile
+    container_name: chess-agent
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/agent/main.py:/app/main.py:ro
+      - ./services/agent/voice_events.py:/app/voice_events.py:ro
+      - ./services/agent/voice_processor.py:/app/voice_processor.py:ro
+      - ./services/agent/lessons.py:/app/lessons.py:ro
+      - ./services/agent/board_setup.py:/app/board_setup.py:ro
+      - ./services/agent/audio:/app/audio:ro
+      - ./services/agent/websocket:/app/websocket:ro
+      - ./services/agent/conversation:/app/conversation:ro
+      - ./services/agent/static:/app/static:ro
+      - ./rx200_agent:/app/rx200_agent:ro
+      - ./lessons:/app/lessons:rw
+      - ./characters.yaml:/app/characters.yaml:rw
+      - ./agent_settings.yaml:/app/agent_settings.yaml:rw
+    environment:
+      VISION_SERVICE_URL: http://vision:8001
+      # Robot uses network_mode: host, so reach it via host gateway
+      ROBOT_SERVICE_URL: http://host.docker.internal:8002
+      STOCKFISH_PATH: /usr/games/stockfish
+      TTS_SERVICE_URL: ${TTS_SERVICE_URL:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - vision

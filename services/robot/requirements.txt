@@ -1,0 +1,14 @@
+# Robot Service Dependencies
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+
+# Robot control
+numpy>=1.24.0
+PyYAML>=6.0
+python-chess>=1.10.0
+scipy>=1.10.0  # For rotation matrix conversions with calibration
+httpx>=0.24.0  # For cross-service calls (collision check)
+
+# Note: interbotix_xs_modules is installed via ROS
+# and requires ROS environment to be sourced

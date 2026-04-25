@@ -1,0 +1,22 @@
+color:
+  width: 1280    # 預設 640 改成 1280
+  height: 720    # 預設 480 改成 720
+  fps: 30
+  format: bgr8
+
+depth:
+  width: 640     # depth 通常可以維持 640×480
+  height: 480
+  fps: 30
+  format: z16
+
+align:
+  enable: true
+
+filters:
+  spatial:
+    enable: true
+    magnitude: 2
+  temporal:
+    enable: false
+
