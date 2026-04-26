@@ -245,6 +245,7 @@ voice_handler: Optional[VoiceHandler] = None
 
 # Conversation services
 llm_service: Optional[LLMService] = None
+llm_service_1: Optional[LLMService] = None  # Stable reference to LLM 1 (never swapped)
 llm_service_2: Optional[LLMService] = None  # Second LLM for Watch mode
 llm_service_3: Optional[LLMService] = None  # Third LLM for Watch mode
 intent_router: Optional[IntentRouter] = None
@@ -289,7 +290,7 @@ def _get_max_tokens() -> int:
 async def lifespan(app: FastAPI):
     """Initialize on startup."""
     global http_client, stockfish_engine, stt_service, tts_service, voice_handler
-    global llm_service, llm_service_2, llm_service_3, intent_router, conversation_context, current_mode, current_language
+    global llm_service, llm_service_1, llm_service_2, llm_service_3, intent_router, conversation_context, current_mode, current_language
     global voice_event_queue, voice_event_processor, _voice_loop_task
 
     print("[Agent Service] Initializing...")
@@ -317,6 +318,7 @@ async def lifespan(app: FastAPI):
             api_key=LLM_API_KEY or None,
             base_url=LLM_BASE_URL or None,
         )
+        llm_service_1 = llm_service  # Stable reference; llm_service may be swapped in Battle mode
         print(f"[Agent Service] LLM model: {LLM_MODEL}" + (f" (base_url: {LLM_BASE_URL})" if LLM_BASE_URL else ""))
 
         # Initialize second LLM service if configured
@@ -1673,7 +1675,10 @@ async def start_game(config: GameConfig):
             except Exception as e:
                 print(f"[Agent] Home position error: {e}")
 
-        # Swap llm_service for battle mode if using LLM2/LLM3
+        # Reset llm_service to LLM 1 first; it may have been swapped to LLM 2/3
+        # by a prior Battle game. Then re-swap if this Battle game wants LLM 2/3.
+        if llm_service_1 is not None:
+            globals()['llm_service'] = llm_service_1
         print(f"[Agent] Game start: mode={current_mode.value}, move_source={config.move_source}")
         if current_mode == GameMode.BATTLE and config.move_source in ("llm2", "llm3"):
             if config.move_source == "llm3" and llm_service_3:
@@ -2625,6 +2630,8 @@ async def _watch_auto_play():
             side_label = "White" if is_white_turn else "Black"
 
             # Pick LLM service: "llm" = service 1, "llm2" = service 2, "llm3" = service 3
+            # Use llm_service_1 (stable ref), NOT llm_service (which may have been
+            # swapped to LLM 2/3 by a prior Battle game and never restored).
             svc = None
             svc_label = ""
             if engine in ("llm", "llm2", "llm3"):
@@ -2633,7 +2640,7 @@ async def _watch_auto_play():
                 elif engine == "llm2" and llm_service_2:
                     svc = llm_service_2
                 else:
-                    svc = llm_service
+                    svc = llm_service_1 or llm_service
                 svc_label = f", model={svc.model}" if svc else ""
             print(f"[Watch] {side_label} turn: engine={engine}, difficulty={difficulty}{svc_label}")
 
@@ -3340,6 +3347,10 @@ async def stop_game():
     _game_stopping = True
     await _cancel_auto_detect()
     _game_stopping = False
+
+    # Restore llm_service to LLM 1 in case a Battle game swapped it to LLM 2/3
+    if llm_service_1 is not None:
+        globals()['llm_service'] = llm_service_1
 
     async with game_lock:
         if current_game is None:

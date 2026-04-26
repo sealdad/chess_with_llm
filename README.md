@@ -4,11 +4,9 @@
 
 **An LLM-first chess AI agent framework — three game modes, character-driven dialogue, and pluggable hooks for vision and a robotic arm.**
 
-<!-- HERO GIF: signature shot of the physical arm picking up a piece (3–6s, 720px wide)
-<p align="center">
-  <img src="docs/media/robot_hero.gif" alt="RX-200 arm picking up a chess piece demo" width="720">
-</p>
--->
+<p align="center">                                                                                                                
+    <img src="docs/media/robot_moving.gif" alt="llm chess" width="720">                                     
+  </p>    
 
 ---
 
@@ -105,6 +103,10 @@ Interbotix RX-200 executes pick / place / capture
 
 ## Teach Mode — AI Generates the Curriculum
 
+<p align="center">                                                                                                                
+    <img src="docs/media/teach_mode.gif" alt="teach mode" width="720">                                     
+  </p>    
+
 The core idea: **the teaching topic and lesson outline can be authored by AI**, expanded into a sequence of steps automatically.
 
 Each step has a single teaching focus — AI explains the concept, demonstrates the move, then guides the student to do it themselves.
@@ -178,6 +180,11 @@ Course designers don't have to write every line of dialogue — just the **teach
 ---
 
 ## Watch Mode — AI vs AI
+
+
+<p align="center">                                                                                                                
+    <img src="docs/media/watch_mode.gif" alt="watch mode" width="720">                                     
+  </p>    
 
 Watch Mode lets two LLMs play each other.
 
