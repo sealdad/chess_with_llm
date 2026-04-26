@@ -100,3 +100,6 @@ lessons/random_*.yaml
 # Claude Code local settings
 .claude/settings.local.json
 calibration_error_analysis.txt
+
+# Claude Code project instructions — local only
+CLAUDE.md
