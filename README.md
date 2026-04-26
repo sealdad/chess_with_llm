@@ -69,6 +69,8 @@ The result: AI opponents not only play, they comment on each move in a tone cons
 
 ***Vision + Robot Hookup***
 
+[![Watch the demo](https://img.youtube.com/vi/741AJce6lFw/maxresdefault.jpg)](https://www.youtube.com/watch?v=741AJce6lFw)
+
 The agent architecture is built so you can wire in **a vision system** and **a robotic arm** later, taking the game off the screen and onto a real board.
 
 End-to-end flow:
