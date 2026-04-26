@@ -266,7 +266,7 @@ No hardware required — runs anywhere. The whole LLM setup happens in the web U
 ### 1. Clone and start the services
 
 ```bash
-git clone https://github.com/<you>/chess-with-llm.git
+git clone https://github.com/sealdad/chess-with-llm.git
 cd chess-with-llm
 docker-compose up
 ```
